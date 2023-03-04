@@ -13,3 +13,5 @@
 --omit-methods=HashCodeAndEqualsSafeSet.of
 --omit-methods=CSVPrinter.close
 --jvm-max-memory=16000m
+--literals-file=CLASSES
+--literals-level=ALL

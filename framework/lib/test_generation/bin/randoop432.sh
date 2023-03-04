@@ -32,7 +32,7 @@ source "$D4J_DIR_TESTGEN_BIN/_tool.source"
 project_cp=$(get_project_cp)
 
 # Read all additional configuration parameters
-add_config=$(parse_config "$D4J_DIR_TESTGEN_BIN/randoop-4.3.2.config")
+add_config=$(parse_config "$D4J_DIR_TESTGEN_BIN/randoop432.config")
 
 # If the user provided a custom set of target classes, invoke Randoop with all
 # classes (as opposed to only relevant classes). This will allow Randoop to
@@ -89,8 +89,8 @@ randoop.main.Main gentests \
 
 if [ "$D4J_DEBUG" == "1" ]; then
   cmd="$cmd \
-  --log=$D4J_DIR_OUTPUT/randoop-4.3.2-log.txt \
-  --selection-log=$D4J_DIR_OUTPUT/selection-4.3.2-log.txt"
+  --log=$D4J_DIR_OUTPUT/randoop432-log.txt \
+  --selection-log=$D4J_DIR_OUTPUT/selection432-log.txt"
 fi
 
 # Run the test-generation command
