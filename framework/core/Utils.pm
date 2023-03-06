@@ -626,7 +626,7 @@ sub get_all_test_suites {
         my @entries = readdir(DIR);
     closedir(DIR);
     foreach (@entries) {
-        next unless /^$pid-(\d+[bf])-([^\.]+)(-\d.\d.\d)?(\.(\d+))?.tar.bz2$/;
+        next unless /^$pid-(\d+[bf])-([^\.]+)(\.(\d+))?.tar.bz2$/;
         my $archive_vid = $1;
         my $archive_suite_src = "$2";
         my $archive_test_id = $4 // 1;
