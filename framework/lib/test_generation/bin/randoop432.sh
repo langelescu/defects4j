@@ -42,10 +42,10 @@ add_config=$(parse_config "$D4J_DIR_TESTGEN_BIN/randoop432.config")
 get_modified_classes > "$D4J_DIR_WORKDIR/classes.d4j.modified"
 if diff -q -w "$D4J_DIR_WORKDIR/classes.d4j.modified" "$D4J_FILE_TARGET_CLASSES"; then
     echo "Running Randoop on relevant classes only"
-    get_relevant_classes > "$D4J_DIR_WORKDIR/classes.randoop-4.3.2"
+    get_relevant_classes > "$D4J_DIR_WORKDIR/classes.randoop432"
 else
     echo "Running Randoop on all classes"
-    get_all_classes > "$D4J_DIR_WORKDIR/classes.randoop-4.3.2"
+    get_all_classes > "$D4J_DIR_WORKDIR/classes.randoop432"
 fi
 
 # Make sure the provided test mode is supported
@@ -77,7 +77,7 @@ cmd="java -ea -classpath $project_cp:$D4J_DIR_TESTGEN_LIB/randoop-4.3.2-current.
   -javaagent:$D4J_DIR_TESTGEN_LIB/replacecall-4.3.2-current.jar \
   -javaagent:$D4J_DIR_TESTGEN_LIB/covered-class-4.3.2-current.jar \
 randoop.main.Main gentests \
-  --classlist=$D4J_DIR_WORKDIR/classes.randoop-4.3.2 \
+  --classlist=$D4J_DIR_WORKDIR/classes.randoop432 \
   --require-covered-classes=$D4J_FILE_TARGET_CLASSES \
   --junit-package-name=$PACKAGE \
   --junit-output-dir=$D4J_DIR_OUTPUT \
