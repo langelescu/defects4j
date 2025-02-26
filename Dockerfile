@@ -10,20 +10,20 @@ RUN \
   apt-get update -y && \
   apt-get install software-properties-common -y && \
   apt-get update -y && \
-  apt-get install -y openjdk-8-jdk \
+  apt-get install -y openjdk-11-jdk \
                 git \
                 build-essential \
-				subversion \
-				perl \
-				curl \
-				unzip \
-				cpanminus \
-				make \
+                subversion \
+                perl \
+                curl \
+                unzip \
+                cpanminus \
+                make \
                 && \
   rm -rf /var/lib/apt/lists/*
 
 # Java version
-ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64
+ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
 
 # Timezone
 ENV TZ=America/Los_Angeles

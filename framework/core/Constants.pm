@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (c) 2014-2019 René Just, Darioush Jalali, and Defects4J contributors.
+# Copyright (c) 2014-2024 René Just, Darioush Jalali, and Defects4J contributors.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -224,30 +224,58 @@ The directory name of the local gradle repository (I<.gradle_local_home>).
 our $GRADLE_LOCAL_HOME_DIR = ($ENV{'GRADLE_LOCAL_HOME_DIR'} // ".gradle_local_home");
 
 #
+# Check if we have the correct version of Java
+#
+# Run the 'java -version' command and capture its output
+my $java_version_output = `java -version 2>&1`;
+
+# Extract the imajor version number using regular expressions
+if ($java_version_output =~ 'version "?(?:1\.)?(\K\d+)') {
+    if ($1 != 11) {
+        die ("Java 11 is required!\n\n");
+    }
+} else {
+    die ("Failed to parse Java version! Is Java installed/on the execution path?\n\n");
+}
+
+#
 # Check whether Defects4J has been properly initialized:
 # - Project repos available?
 # - Major mutation framework available?
 # - External libraries (test generation) available?
 #
--e "$REPO_DIR/README"
-        or die("Couldn't find project repositories! Did you (re)run 'defects4j/init.sh'?\n\n");
+_repos_available()
+        or die("Couldn't find up-to-date project repositories! Did you (re)run 'defects4j/init.sh'?\n\n");
+
 -e "$MAJOR_ROOT/bin/ant"
         or die("Couldn't find Major mutation framework! Did you (re)run 'defects4j/init.sh'?\n\n");
+
 -d "$TESTGEN_LIB_DIR"
         or die("Couldn't find test generation tools! Did you (re)run 'defects4j/init.sh'?\n\n");
+
 -d "$BUILD_SYSTEMS_LIB_DIR"
         or die("Couldn't find build system tools! Did you (re)run 'defects4j/init.sh'?\n\n");
+
 -d "$BUILD_SYSTEMS_LIB_DIR/gradle/dists"
         or die("Couldn't find gradle distributions! Did you (re)run 'defects4j/init.sh'?\n\n");
+
 -d "$BUILD_SYSTEMS_LIB_DIR/gradle/deps"
         or die("Couldn't find gradle dependencies! Did you (re)run 'defects4j/init.sh'?\n\n");
+
+sub _repos_available {
+    -e "$REPO_DIR/README" or return 0;
+    open(IN, "<$REPO_DIR/README") or return 0;
+    my $line = <IN>;
+    close(IN);
+    $line =~ /Defects4J version 3/ or return 0;
+}
 
 # Add script and core directory to @INC
 unshift(@INC, $CORE_DIR);
 unshift(@INC, $SCRIPT_DIR);
 unshift(@INC, $LIB_DIR);
 # Append Major's executables to the PATH -> ant may not be installed by default
-$ENV{PATH}="$ENV{PATH}:$MAJOR_ROOT/bin";
+$ENV{PATH}="$MAJOR_ROOT/bin:$ENV{PATH}";
 
 # Constant strings used for errors
 our $ARG_ERROR       = "Invalid number of arguments!";

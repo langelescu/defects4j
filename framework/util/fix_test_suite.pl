@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
 #-------------------------------------------------------------------------------
-# Copyright (c) 2014-2019 René Just, Darioush Jalali, and Defects4J contributors.
+# Copyright (c) 2014-2024 René Just, Darioush Jalali, and Defects4J contributors.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -211,7 +211,7 @@ foreach (@entries) {
     my $pid = $1;
     my $vid = $2;
     my $src = $3;
-    my $tid = ($5 or "1");
+    my $tid = ($5 // "1");
     # Check whether target pid matches
     next if ($PID ne $pid);
     # Check whether a target src is defined

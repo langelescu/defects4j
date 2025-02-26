@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (c) 2014-2019 René Just, Darioush Jalali, and Defects4J contributors.
+# Copyright (c) 2014-2024 René Just, Darioush Jalali, and Defects4J contributors.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -63,9 +63,27 @@ sub _post_checkout {
     @_ == 3 or die $ARG_ERROR;
     my ($self, $rev_id, $work_dir) = @_;
 
+    my $bid = Utils::get_bid($work_dir);
+
     # remove the JodaTime super directory (move things one dir up)
     if (-e "$work_dir/JodaTime") {
         system("mv $work_dir/JodaTime/* $work_dir");
+    }
+
+    # Fix compilation errors if necessary.
+    # Run this as the first step to ensure that patches are applicable to
+    # unmodified source files.
+    my $compile_errors = "$PROJECTS_DIR/$self->{pid}/compile-errors/";
+    opendir(DIR, $compile_errors) or die "Could not find compile-errors directory.";
+    my @entries = readdir(DIR);
+    closedir(DIR);
+    foreach my $file (@entries) {
+        if ($file =~ /-(\d+)-(\d+).diff/) {
+            if ($bid >= $1 && $bid <= $2) {
+                $self->apply_patch($work_dir, "$compile_errors/$file")
+                        or confess("Couldn't apply patch ($file): $!");
+            }
+        }
     }
 
     my $project_dir = "$PROJECTS_DIR/$self->{pid}";

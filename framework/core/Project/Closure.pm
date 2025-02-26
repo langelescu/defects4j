@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (c) 2014-2019 René Just, Darioush Jalali, and Defects4J contributors.
+# Copyright (c) 2014-2024 René Just, Darioush Jalali, and Defects4J contributors.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -69,6 +69,22 @@ sub _post_checkout {
     @_ == 3 or die $ARG_ERROR;
     my ($self, $rev_id, $work_dir) = @_;
 
+    my $bid = Utils::get_bid($work_dir);
+
+    # Fix compilation errors if necessary
+    my $compile_errors = "$PROJECTS_DIR/$self->{pid}/compile-errors/";
+    opendir(DIR, $compile_errors) or die "Could not find compile-errors directory.";
+    my @entries = readdir(DIR);
+    closedir(DIR);
+    foreach my $file (@entries) {
+        if ($file =~ /-(\d+)-(\d+).diff/) {
+            if ($bid >= $1 && $bid <= $2) {
+                $self->apply_patch($work_dir, "$compile_errors/$file")
+                        or confess("Couldn't apply patch ($file): $!");
+            }
+        }
+    }
+
     open FH, "$work_dir/build.xml" or die $!;
     my $build_file = do { local $/; <FH> };
     close FH;
@@ -76,9 +92,28 @@ sub _post_checkout {
     $build_file =~ s/debug=".*"//g;
     $build_file =~ s/<javac (.*)/<javac debug="true" $1/g;
 
+    # Set source and target version in javac targets.
+    my $jvm_version = "1.6";
+
+    unless ($build_file =~ m/<property name="ant.build.javac.source"/) {
+        $build_file =~ s/(<project name="compiler"[^>]+>)/$1\n<property name="ant.build.javac.target" value="${jvm_version}"\/>\n<property name="ant.build.javac.source" value="${jvm_version}"\/>/s;
+    }
+
     open FH, ">$work_dir/build.xml" or die $!;
     print FH $build_file;
     close FH;
+
+    # Set default Java target to 6.
+    if (-e "$work_dir/lib/rhino/build.properties") {
+        # either these:
+        Utils::sed_cmd("s/source-level: 1\.[1-5]/source-level ${jvm_version}/", "$work_dir/lib/rhino/build.properties");
+        Utils::sed_cmd("s/target-jvm: 1\.[1-5]/target-jvm ${jvm_version}/", "$work_dir/lib/rhino/build.properties");
+    }
+    if (-e "$work_dir/lib/rhino/src/mozilla/js/rhino/build.properties") {
+        # or these:
+        Utils::sed_cmd("s/source-level: 1\.[1-5]/source-level ${jvm_version}/", "$work_dir/lib/rhino/src/mozilla/js/rhino/build.properties");
+        Utils::sed_cmd("s/target-jvm: 1\.[1-5]/target-jvm ${jvm_version}/", "$work_dir/lib/rhino/src/mozilla/js/rhino/build.properties");
+    }
 }
 
 1;

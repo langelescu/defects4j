@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (c) 2014-2019 René Just, Darioush Jalali, and Defects4J contributors.
+# Copyright (c) 2014-2024 René Just, Darioush Jalali, and Defects4J contributors.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -456,11 +456,18 @@ sub checkout_vid {
         }
     }
 
-    # Note: will skip both of these for bug mining, for two reasons, 1: it isnt necessary, 2: dont have depdencies yet
+    # Note: will skip both of these for bug mining, for two reasons:
+    # (1) it isnt necessary and (2) we don't have dependencies yet.
     # Fix test suite if necessary
     $self->fix_tests("${bid}f");
     # Write version-specific properties
     $self->_write_props($vid, $is_bugmine);
+
+    # Fix dependency URLs if necessary (we only fix this on the fixed version
+    # since the buggy version is derived by applying a source-code patch).
+    for my $build_file (("build.xml", "maven-build.xml", "pom.xml", "project.xml", "project.properties", "default.properties", "maven-build.properties")) {
+        Utils::fix_dependency_urls("$work_dir/$build_file", "$UTIL_DIR/fix_dependency_urls.patterns", 0) if -e "$work_dir/$build_file";
+    }
 
     # Commit and tag the fixed program version
     $tag_name = Utils::tag_prefix($pid, $bid) . $TAG_FIXED;
@@ -733,16 +740,49 @@ sub monitor_test {
     my @log = `cat $log_file`;
     foreach (@log) {
         chomp;
-        s/\[Loaded ([^\$]*)(\$\S*)? from.*/$1/;
+        # Try to find the correspondent .java file of a given loaded class X.
+        #
+        # X could be
+        #  - A system class, e.g., java.io.ObjectInput, which is ignored by the following
+        #    procedure as it does not belong to the project under test.
+        #  - A "normal" class for which there is indeed a correspondent X.java file.
+        #  - A "normal" class named with one or more $ symbols, e.g., com.google.gson.internal.$Gson$Types
+        #    from Gson-{14,16,18}.
+        #
+        # First match corresponds to what a Java-8 JVM outputs; the second match
+        # corresponds to what a Java-11 JVM outputs.
+        s/\[Loaded (.*) from.*/$1/ or s/\S* (.*) source: .*/$1/;
+        my $found = 0;
         if (defined $src->{$_}) {
+            $found = 1;
             push(@{$classes->{src}}, $_);
             # Delete already loaded classes to avoid duplicates in the result
             delete($src->{$_});
         }
         if (defined $test->{$_}) {
+            $found = 1;
             push(@{$classes->{test}}, $_);
             # Delete already loaded classes to avoid duplicates in the result
             delete($test->{$_});
+        }
+        if ($found == 0) {
+            # The correspondent .java file of a given loaded class X has not been found.
+            #
+            # It might be that X is, for example, an inner class or anonymous class for which
+            # there is no correspondent .java file, e.g., org.apache.commons.math3.util.MathArrays$OrderDirection
+            # from Math-25.  Thus, try to find the correspondent .java file of X's parent class.
+            #
+            s/([^\$]*)(\$\S*)?/$1/;
+            if (defined $src->{$_}) {
+                push(@{$classes->{src}}, $_);
+                # Delete already loaded classes to avoid duplicates in the result
+                delete($src->{$_});
+            }
+            if (defined $test->{$_}) {
+                push(@{$classes->{test}}, $_);
+                # Delete already loaded classes to avoid duplicates in the result
+                delete($test->{$_});
+            }
         }
     }
     return $classes;
@@ -841,7 +881,7 @@ sub mutate {
     -e "$mml_bin" or die "Mml file does not exist: $mml_bin!";
 
     # Set environment variable MML, which is read by Major
-    $ENV{MML} = $mml_bin;
+    $ENV{MML} = "mml:$mml_bin";
 
     # Mutate and compile sources
     my $ret = $self->_call_major("mutate");
@@ -1105,9 +1145,12 @@ sub _ant_call {
     $option_str = "" unless defined $option_str;
     $ant_cmd = "ant" unless defined $ant_cmd;
 
+    my $verbose = ($DEBUG==1) ? " -v" : "";
+
     # Set up environment before running ant
     my $cmd = " cd $self->{prog_root}" .
               " && $ant_cmd" .
+                $verbose .
                 " -f $D4J_BUILD_FILE" .
                 " -Dd4j.home=$BASE_DIR" .
                 " -Dd4j.dir.projects=$PROJECTS_DIR" .
@@ -1124,14 +1167,13 @@ sub _ant_call {
 }
 
 #
-# Ensure backward compatibility with Java 7
 # TODO: Remove after Defects4J downloads and initializes its own version of Ant
 #       Currently, we rely on Major's version of Ant to be properly set up.
 #
 sub _ant_call_comp {
     @_ >= 2 or die $ARG_ERROR;
     my ($self, $target, $option_str, $log_file, $ant_cmd) =  @_;
-    $option_str = "-Dbuild.compiler=javac1.7 " . ($option_str // "");
+    $option_str = ($option_str // "");
     $ant_cmd = "$MAJOR_ROOT/bin/ant" unless defined $ant_cmd;
     return $self->_ant_call($target, $option_str, $log_file, $ant_cmd);
 }
@@ -1235,7 +1277,7 @@ sub _cache_layout_map {
     my $cache = {};
     while (<IN>) {
         chomp;
-        /^([^,]+),([^,]+),(.+)$/ or die;
+        /^([^,]+),([^,]+),(.+)$/ or die "Unexpected entry in layout map: $_";
         $cache->{$1} = {src=>$2, test=>$3};
     }
     close IN;

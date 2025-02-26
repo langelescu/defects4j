@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
 #-------------------------------------------------------------------------------
-# Copyright (c) 2014-2019 René Just, Darioush Jalali, and Defects4J contributors.
+# Copyright (c) 2014-2024 René Just, Darioush Jalali, and Defects4J contributors.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -156,11 +156,18 @@ if (defined($QUERY)) {
 } else {
     $QUERY = "";
 }
+
+my $ORG_ID = "";
+if (defined($ORGANIZATION_ID)) {
+  $ORG_ID = " -z $ORGANIZATION_ID";
+}
+
 # Collect all issues from the project issue tracker
 Utils::exec_cmd("./download-issues.pl -g $ISSUE_TRACKER_NAME"
                                   . " -t $ISSUE_TRACKER_PROJECT_ID"
                                   . " -o $ISSUES_DIR"
                                   . " -f $ISSUES_FILE"
+                                  . "$ORG_ID"
                                   . "$QUERY",
                 "Collecting all issues from the project issue tracker") or die "Cannot collect all issues from the project issue tracker!";
 
@@ -182,9 +189,6 @@ if (-e "$CORE_DIR/Project/$PID.pm") {
     system("tail -n +2 $PROJECTS_DIR/$PID/$BUGS_CSV_ACTIVE | cut -f 2- -d',' > $COMMIT_DB_FILE.orig");
     # Find all versions that have not been mined
     system("grep -vFf $COMMIT_DB_FILE.orig $COMMIT_DB_FILE > $COMMIT_DB_FILE.filter && mv $COMMIT_DB_FILE.filter $COMMIT_DB_FILE");
-    # Print header to the active bugs csv
-    my $active_header = $BUGS_CSV_BUGID.",".$BUGS_CSV_COMMIT_BUGGY.",".$BUGS_CSV_COMMIT_FIXED.",".$BUGS_CSV_ISSUE_ID.",".$BUGS_CSV_ISSUE_URL;
-    system("echo $active_header > $COMMIT_DB_FILE.new && cat $COMMIT_DB_FILE >> $COMMIT_DB_FILE.new && mv $COMMIT_DB_FILE.new $COMMIT_DB_FILE");
 }
 
 print("Project $PID has been successfully initialized!\n");

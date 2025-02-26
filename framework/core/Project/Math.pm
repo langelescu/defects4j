@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (c) 2014-2019 René Just, Darioush Jalali, and Defects4J contributors.
+# Copyright (c) 2014-2024 René Just, Darioush Jalali, and Defects4J contributors.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -50,7 +50,8 @@ sub new {
     my $name = "commons-math";
     my $vcs  = Vcs::Git->new($PID,
                              "$REPO_DIR/$name.git",
-                             "$PROJECTS_DIR/$PID/$BUGS_CSV_ACTIVE");
+                             "$PROJECTS_DIR/$PID/$BUGS_CSV_ACTIVE",
+                             \&_post_checkout);
 
     return $class->SUPER::new($PID, $name, $vcs);
 }
@@ -99,6 +100,34 @@ sub _layout2 {
     $test=~ s/.*<unitTestSourceDirectory>\s*([^<]+)\s*<\/unitTestSourceDirectory>.*/$1/;
 
     return {src=>$src, test=>$test};
+}
+
+sub _post_checkout {
+    my ($self, $revision_id, $work_dir) = @_;
+
+    # Convert the file encoding of problematic files
+    my $result = determine_layout($self, $revision_id);
+    Utils::convert_file_encoding($work_dir."/".$result->{src}."/org/apache/commons/math3/stat/correlation/StorelessBivariateCovariance.java");
+    Utils::convert_file_encoding($work_dir."/".$result->{src}."/org/apache/commons/math3/stat/correlation/StorelessCovariance.java");
+
+    # Set source and target version in javac targets.
+    my $jvm_version="1.6";
+
+    if (-e "$work_dir/build.xml") {
+        rename("$work_dir/build.xml", "$work_dir/build.xml.bak");
+        open(IN, "<$work_dir/build.xml.bak") or die $!;
+        open(OUT, ">$work_dir/build.xml") or die $!;
+        while(<IN>) {
+            my $l = $_;
+            $l =~ s/(javac destdir="\$\{classesdir\}" deprecation="true")/$1 target="${jvm_version}" source="${jvm_version}"/g;
+            $l =~ s/(javac destdir="\$\{testclassesdir\}" deprecation="true")/$1 target="${jvm_version}" source="${jvm_version}"/g;
+            $l =~ s/value="1\.[1-5]"/value="${jvm_version}"/g;
+
+            print OUT $l;
+        }
+        close(IN);
+        close(OUT);
+    }
 }
 
 #
